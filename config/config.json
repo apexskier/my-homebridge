@@ -1,0 +1,18 @@
+{
+    "bridge": {
+        "name": "Apexskier Homebridge",
+        "username": "AA:EA:70:44:E6:B8",
+        "port": 51826,
+        "pin": "147-63-768"
+    },
+
+    "description": "Our fancy connected home controller.",
+
+    "accessories": [
+        {
+            "accessory": "MagicMirror",
+            "name": "Magic Mirror",
+            "serial": "something"
+        }
+    ]
+}

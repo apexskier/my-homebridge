@@ -13,6 +13,10 @@
             "accessory": "MagicMirror",
             "name": "Magic Mirror",
             "serial": "something"
+        },
+        {
+            "accessory": "SmartLight",
+            "name": "Bedside Light"
         }
     ]
 }

@@ -1,11 +1,13 @@
 import { Characteristic, Service } from 'hap-nodejs'
+
 import pkg from './package.json'
 import globalInfo from '../../globalInfo'
+import HomebridgeAccessory from '../homebridgeAccessory'
 
-export default class MagicMirror {
+
+export default class MagicMirror extends HomebridgeAccessory {
     constructor(log, config) {
-        this.log = log;
-        this.name = config['name'];
+        super(log, config);
 
         const info = new Service.AccessoryInformation()
         info.setCharacteristic(Characteristic.Name, this.name);
@@ -31,10 +33,6 @@ export default class MagicMirror {
             lightSensorService,
             motionSensorService,
         ];
-    }
-
-    getServices() {
-        return this.services;
     }
 
     getMotion(callback) {

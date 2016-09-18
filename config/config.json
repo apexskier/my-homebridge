@@ -12,7 +12,7 @@
         {
             "accessory": "MagicMirror",
             "name": "Magic Mirror",
-            "serial": "something"
+            "serial": "..."
         },
         {
             "accessory": "SmartLight",

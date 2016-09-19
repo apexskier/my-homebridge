@@ -20,39 +20,40 @@ const VC_HDMI_HDCP_SRM_DOWNLOAD  = 1 << 7;  // HDCP revocation list download suc
 const VC_HDMI_CHANGING_MODE      = 1 << 8;  // HDMI is starting to change mode, clock has not yet been set
 
 export default function create(name, log) {
-    return new Service.Switch(`${name} TV`);
-        magicMirrorPowerService
-            .getCharacteristic(Characteristic.On)
-            .on('get', (callback) => {
-                exec('tvservice -s', (err, stdout, stderr) => {
-                    if (err) {
-                        callback(err);
+    const magicMirrorPowerService = new Service.Switch(`${name} TV`);
+    magicMirrorPowerService
+        .getCharacteristic(Characteristic.On)
+        .on('get', (callback) => {
+            exec('tvservice -s', (err, stdout, stderr) => {
+                if (err) {
+                    callback(err);
+                } else {
+                    log.debug(err, stdout, stderr);
+                    const state = parseInt(stdout.split(/\s/)[1]);
+                    log.debug(state);
+                    if (state & (VC_HDMI_HDMI | VC_HDMI_DVI)) {
+                        callback(null, true);
+                    } else if (state & (VC_HDMI_UNPLUGGED | VC_HDMI_ATTACHED)) {
+                        callback(null, false);
                     } else {
-                        log.debug(err, stdout, stderr);
-                        const state = parseInt(stdout.split(/\s/)[1]);
-                        log.debug(state);
-                        if (state & (VC_HDMI_HDMI | VC_HDMI_DVI)) {
-                            callback(null, true);
-                        } else if (state & (VC_HDMI_UNPLUGGED | VC_HDMI_ATTACHED)) {
-                            callback(null, false);
-                        } else {
-                            const err = new Error('Unhandled tv state', state);
-                            log.error(err);
-                            callback(err);
-                        }
-                    }
-                });
-            })
-            .on('set', (on, callback) => {
-                const cmd = `tvservice -${on ? 'p' : 'o'}`;
-                exec(cmd, (err, stdout, stderr) => {
-                    if (err) {
+                        const err = new Error('Unhandled tv state', state);
                         log.error(err);
                         callback(err);
-                    } else {
-                        log.debug(stdout, stderr);
-                        callback(null, stdout);
                     }
-                });
+                }
             });
+        })
+        .on('set', (on, callback) => {
+            const cmd = `tvservice -${on ? 'p' : 'o'}`;
+            exec(cmd, (err, stdout, stderr) => {
+                if (err) {
+                    log.error(err);
+                    callback(err);
+                } else {
+                    log.debug(stdout, stderr);
+                    callback(null, stdout);
+                }
+            });
+        });
+    return magicMirrorPowerService;
 }

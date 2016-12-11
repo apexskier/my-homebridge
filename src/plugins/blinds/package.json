@@ -1,6 +1,6 @@
 {
-  "name": "homebridge-apexskier",
-  "version": "0.0.2",
+  "name": "apexskier-homebridge-blinds",
+  "version": "0.0.1",
   "license": "ISC",
   "keywords": [
     "homebridge-plugin"
@@ -10,3 +10,4 @@
     "homebridge": ">=0.2.0"
   }
 }
+

@@ -6,17 +6,16 @@
         "pin": "147-63-768"
     },
 
-    "description": "Our fancy connected home controller.",
+    "description": "My fancy connected home controller.",
 
     "accessories": [
         {
-            "accessory": "MagicMirror",
-            "name": "Magic Mirror",
-            "serial": "..."
-        },
-        {
             "accessory": "SmartLight",
             "name": "Bedside Light"
+        },
+        {
+            "accessory": "Blinds",
+            "name": "Bedroom Blinds"
         }
     ]
 }

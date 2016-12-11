@@ -94,7 +94,7 @@ export class SmartLight {
             this.log.debug('new data query');
 
             return fetch(`${this.server}/status`, {
-                method: 'get',
+                method: 'GET',
                 ...defaultFetchOptions,
             })
             .then(response => response.json())
@@ -107,7 +107,8 @@ export class SmartLight {
                 });
                 queryWatchers = [];
                 return val;
-            }, err => {
+            })
+            .catch(err => {
                 if (i > 4) {
                     this.log.warn('retrying data query');
                     return newQuery(i + 1);
@@ -158,7 +159,7 @@ export class SmartLight {
                 this.log.debug('setting color', { h, s, v }, { r, g, b });
                 this.log.debug(`${this.server}/color?duration=${this.debounceTime}&r=${r}&g=${g}&b=${b}`);
                 return fetch(`${this.server}/color?duration=${this.debounceTime}&r=${r}&g=${g}&b=${b}`, {
-                    method: 'post',
+                    method: 'POST',
                     ...defaultFetchOptions,
                 })
                 .then(r => r.json());
@@ -196,7 +197,7 @@ export class SmartLight {
 
     turnOff() {
         return fetch(`${this.server}/off`, {
-            method: 'get',
+            method: 'GET',
             ...defaultFetchOptions,
         })
         .then(r => r.json());

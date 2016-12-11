@@ -10,6 +10,10 @@
 
     "accessories": [
         {
+            "accessory": "MagicMirror",
+            "name": "Magic Mirror"
+        },
+        {
             "accessory": "SmartLight",
             "name": "Bedside Light"
         },

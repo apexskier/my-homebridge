@@ -101,6 +101,10 @@ export class Blinds {
     }
 }
 
+function cleanValue(v) {
+    return Math.min(100, Math.max(0, Math.round(v / 300)));
+}
+
 export default class BlindsAccessory extends HomebridgeAccessory {
     constructor(log, config) {
         super(log, config);
@@ -124,6 +128,19 @@ export default class BlindsAccessory extends HomebridgeAccessory {
                     callback(err);
                 });
             });
+        lightSensorService
+            .setCharacteristic(Characteristic.StatusActive, true);
+
+        (function lightSensorLoop() {
+            blindObj.getStatus().then((data) => {
+                lightSensorService
+                    .setCharacteristic(Characteristic.CurrentAmbientLightLevel, data.luminance);
+                setTimeout(lightSensorLoop, 10000);
+            }).catch(err => {
+                log.error(err);
+                setTimeout(lightSensorLoop, 10000);
+            });
+        })();
 
         this.services = [
             lightSensorService
@@ -131,41 +148,96 @@ export default class BlindsAccessory extends HomebridgeAccessory {
 
         for (let i = 0; i < blindObj.numBlinds; i++) {
             const coveringService = new Service.WindowCovering();
+            // coveringService
+            //     .getCharacteristic(Characteristic.CurrentHorizontalTiltAngle)
+            //     .on('get', callback => {
+            //         blindObj.getStatus().then(data => {
+            //             callback(null, cleanValue(data.blinds[i].current));
+            //         }).catch(err => {
+            //             log.error(err);
+            //             callback(err);
+            //         });
+            //     });
+            // coveringService
+            //     .getCharacteristic(Characteristic.TargetHorizontalTiltAngle)
+            //     .on('get', callback => {
+            //         blindObj.getStatus().then(data => {
+            //             callback(null, cleanValue(data.blinds[i].target));
+            //         }).catch(err => {
+            //             log.error(err);
+            //             callback(err);
+            //         });
+            //     })
+            //     .on('set', (value, callback) => {
+            //         log.debug(`seeking blinds to ${value}`);
+            //         blindObj.seek(value).then(() => {
+            //             callback();
+            //         }).catch(callback);
+            //     });
             coveringService
-                .getCharacteristic(Characteristic.CurrentHorizontalTiltAngle)
+                .getCharacteristic(Characteristic.CurrentPosition)
                 .on('get', callback => {
                     blindObj.getStatus().then(data => {
-                        callback(null, data.blinds[i].current);
+                        callback(null, cleanValue(data.blinds[i].current));
                     }).catch(err => {
                         log.error(err);
                         callback(err);
                     });
                 });
             coveringService
-                .getCharacteristic(Characteristic.TargetHorizontalTiltAngle)
+                .getCharacteristic(Characteristic.TargetPosition)
                 .on('get', callback => {
                     blindObj.getStatus().then(data => {
-                        callback(null, data.blinds[i].target);
+                        callback(null, cleanValue(data.blinds[i].target));
                     }).catch(err => {
                         log.error(err);
                         callback(err);
                     });
                 })
                 .on('set', (value, callback) => {
-                    blindObj.seek(value).then(() => {
+                    // map 0 - 100 to 60 - 270
+                    const deg = Math.round((value * 2.10) + 60)
+                    log.debug(`seeking blinds to ${deg}`);
+                    blindObj.seek(deg).then(() => {
                         callback();
-                    }).catch(callback);
+                    }).catch(() => callback('error'));
                 });
-            // coveringService
-            //     .getCharacteristic(Characteristic.ObstructionDetected)
-            //     .on('get', callback => {
-            //         blindObj.getStatus().then(data => {
-            //             callback(null, data.blinds[i].obstructed);
-            //         }).catch(err => {
-            //             log.error(err);
-            //             callback(err);
-            //         });
-            //     });
+            coveringService
+                .getCharacteristic(Characteristic.PositionState)
+                .on('get', callback => {
+                    blindObj.getStatus().then(data => {
+                        switch (data.blinds[i].moving) {
+                            case "stopped":
+                                log.debug('positionstate stopped');
+                                callback(null, Characteristic.PositionState.STOPPED);
+                                break;
+                            case "positive":
+                                log.debug('positionstate positive');
+                                callback(null, Characteristic.PositionState.INCREASING);
+                                break;
+                            case "negative":
+                                log.debug('positionstate negative');
+                                callback(null, Characteristic.PositionState.DECREASING);
+                                break;
+                            default:
+                                log.warn('positionstate unexpected');
+                                callback('something unexpected');
+                        }
+                    }).catch(err => {
+                        log.error(err);
+                        callback(err);
+                    });
+                });
+            coveringService
+                .getCharacteristic(Characteristic.ObstructionDetected)
+                .on('get', callback => {
+                    blindObj.getStatus().then(data => {
+                        callback(null, data.blinds[i].obstructed);
+                    }).catch(err => {
+                        log.error(err);
+                        callback(err);
+                    });
+                });
 
             this.services.push(coveringService);
         }

@@ -31,20 +31,16 @@ export class Blinds {
             queryRejected = false;
             queryFinished = false;
 
-            if (this.log) this.log.debug('new data query');
-
             return fetch(`${this.server}`, {
                 method: 'GET',
                 ...defaultFetchOptions,
             })
-            .then(response => response.json())
+            .then(r => r.json())
             .then(val => {
                 queryResolved = true;
                 queryFinished = true;
-                if (this.log) this.log.debug('resolving queryWatchers');
-                queryWatchers.forEach(([resolve]) => {
-                    resolve(val);
-                });
+                if (this.log) this.log.debug(`blinds data: ${JSON.stringify(val)}`);
+                queryWatchers.forEach(([resolve, reject]) => resolve(val));
                 queryWatchers = [];
                 return val;
             })
@@ -55,13 +51,10 @@ export class Blinds {
                 } else {
                     queryRejected = true;
                     queryFinished = true;
-                    if (this.log) this.log.error(e);
-                    if (this.log) this.log.debug('rejecting queryWatchers');
-                    queryWatchers.forEach(([resolve, reject]) => {
-                        reject(err);
-                    });
+                    if (this.log) this.log.error(err);
+                    queryWatchers.forEach(([resolve, reject]) => reject(err));
                     queryWatchers = [];
-                    throw e;
+                    throw err;
                 }
             });
         }
@@ -71,7 +64,7 @@ export class Blinds {
                 queryWatchers.push([resolve, reject]);
             });
 
-            if (queryResolved) {
+            if (queryFinished) {
                 newQuery();
             }
 
@@ -92,18 +85,31 @@ export class Blinds {
             ...defaultFetchOptions,
         });
     }
-
-    setColor(color) {
-        return new Promise((resolve, reject) => {
-            this.requestBuffer.next([ color, resolve, reject ]);
-            this.requestDebounced.next(true);
-        })
-    }
 }
 
-function cleanValue(v) {
-    return Math.min(100, Math.max(0, Math.round(v / 300)));
+const minAngle = 50;
+const maxAngle = 300;
+const midAngle = (maxAngle + minAngle) / 2;
+function cleanValueTilt(v) {
+  let r = (v - minAngle) / (maxAngle - minAngle);
+  r = r * 180;
+  r = r - 90
+  return Math.min(90, Math.max(-90, Math.round(r)));
 }
+
+function cleanValueOpen(v) {
+  let r = (v - minAngle) / (midAngle - minAngle);
+  r = r * 100;
+  r = r * 2;
+  r = 100 - r;
+  return Math.min(100, Math.max(0, Math.round(r)));
+}
+
+function uncleanValueOpen(v) {
+    let r = ((v / 100) * (midAngle - minAngle)) + minAngle;
+    return Math.min(maxAngle, Math.max(minAngle, Math.round(r)));
+}
+
 
 export default class BlindsAccessory extends HomebridgeAccessory {
     constructor(log, config) {
@@ -119,19 +125,11 @@ export default class BlindsAccessory extends HomebridgeAccessory {
 
         const lightSensorService = new Service.LightSensor();
         lightSensorService
-            .getCharacteristic(Characteristic.CurrentAmbientLightLevel)
-            .on('get', (callback) => {
-                blindObj.getStatus().then((data) => {
-                    callback(null, data.luminance);
-                }).catch(err => {
-                    log.error(err);
-                    callback(err);
-                });
-            });
-        lightSensorService
-            .setCharacteristic(Characteristic.StatusActive, true);
+            .getCharacteristic(Characteristic.CurrentAmbientLightLevel);
 
         (function lightSensorLoop() {
+            lightSensorService
+                .setCharacteristic(Characteristic.StatusActive, true);
             blindObj.getStatus().then((data) => {
                 lightSensorService
                     .setCharacteristic(Characteristic.CurrentAmbientLightLevel, data.luminance);
@@ -139,46 +137,47 @@ export default class BlindsAccessory extends HomebridgeAccessory {
             }).catch(err => {
                 log.error(err);
                 setTimeout(lightSensorLoop, 10000);
+                lightSensorService
+                    .setCharacteristic(Characteristic.StatusActive, false);
             });
         })();
 
-        this.services = [
-            lightSensorService
-        ];
-
         for (let i = 0; i < blindObj.numBlinds; i++) {
             const coveringService = new Service.WindowCovering();
-            // coveringService
-            //     .getCharacteristic(Characteristic.CurrentHorizontalTiltAngle)
-            //     .on('get', callback => {
-            //         blindObj.getStatus().then(data => {
-            //             callback(null, cleanValue(data.blinds[i].current));
-            //         }).catch(err => {
-            //             log.error(err);
-            //             callback(err);
-            //         });
-            //     });
-            // coveringService
-            //     .getCharacteristic(Characteristic.TargetHorizontalTiltAngle)
-            //     .on('get', callback => {
-            //         blindObj.getStatus().then(data => {
-            //             callback(null, cleanValue(data.blinds[i].target));
-            //         }).catch(err => {
-            //             log.error(err);
-            //             callback(err);
-            //         });
-            //     })
-            //     .on('set', (value, callback) => {
-            //         log.debug(`seeking blinds to ${value}`);
-            //         blindObj.seek(value).then(() => {
-            //             callback();
-            //         }).catch(callback);
-            //     });
+            coveringService
+                .getCharacteristic(Characteristic.CurrentHorizontalTiltAngle)
+                .on('get', callback => {
+                    blindObj.getStatus().then(data => {
+                        callback(null, cleanValueTilt(data.blinds[i].current));
+                    }).catch(err => {
+                        log.error(err);
+                        callback(err);
+                    });
+                });
+            coveringService
+                .getCharacteristic(Characteristic.TargetHorizontalTiltAngle)
+                .on('get', callback => {
+                    blindObj.getStatus().then(data => {
+                        callback(null, cleanValueTilt(data.blinds[i].target));
+                    }).catch(err => {
+                        log.error(err);
+                        callback(err);
+                    });
+                })
+                .on('set', (value, callback) => {
+                    log.debug(`tilting blinds to ${value}`);
+                    blindObj.seek(value).then(() => {
+                        callback();
+                    }).catch((err) => {
+                        log.error(err);
+                        callback('error');
+                    });
+                });
             coveringService
                 .getCharacteristic(Characteristic.CurrentPosition)
                 .on('get', callback => {
                     blindObj.getStatus().then(data => {
-                        callback(null, cleanValue(data.blinds[i].current));
+                        callback(null, cleanValueOpen(data.blinds[i].current));
                     }).catch(err => {
                         log.error(err);
                         callback(err);
@@ -188,19 +187,21 @@ export default class BlindsAccessory extends HomebridgeAccessory {
                 .getCharacteristic(Characteristic.TargetPosition)
                 .on('get', callback => {
                     blindObj.getStatus().then(data => {
-                        callback(null, cleanValue(data.blinds[i].target));
+                        callback(null, cleanValueOpen(data.blinds[i].target));
                     }).catch(err => {
                         log.error(err);
                         callback(err);
                     });
                 })
                 .on('set', (value, callback) => {
-                    // map 0 - 100 to 60 - 270
-                    const deg = Math.round((value * 2.10) + 60)
-                    log.debug(`seeking blinds to ${deg}`);
-                    blindObj.seek(deg).then(() => {
+                    log.debug(`seeking blinds to ${uncleanValueOpen(value)}`);
+                    blindObj.seek(uncleanValueOpen(value)).then(() => {
+                        log.debug('****************** seeked');
                         callback();
-                    }).catch(() => callback('error'));
+                    }).catch((err) => {
+                        log.error(err);
+                        callback('error');
+                    });
                 });
             coveringService
                 .getCharacteristic(Characteristic.PositionState)
@@ -239,7 +240,10 @@ export default class BlindsAccessory extends HomebridgeAccessory {
                     });
                 });
 
-            this.services.push(coveringService);
+            this.services = [
+                lightSensorService,
+                coveringService,
+            ];
         }
     }
 }

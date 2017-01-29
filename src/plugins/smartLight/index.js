@@ -115,13 +115,13 @@ export class SmartLight {
                 } else {
                     queryRejected = true;
                     queryFinished = true;
-                    this.log.error(e);
+                    this.log.error(err);
                     this.log.debug('rejecting queryWatchers');
                     queryWatchers.forEach(([resolve, reject]) => {
                         reject(err);
                     });
                     queryWatchers = [];
-                    throw e;
+                    throw err;
                 }
             });
         }

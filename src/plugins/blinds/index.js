@@ -39,7 +39,6 @@ export class Blinds {
             .then(val => {
                 queryResolved = true;
                 queryFinished = true;
-                if (this.log) this.log.debug(`blinds data: ${JSON.stringify(val)}`);
                 queryWatchers.forEach(([resolve, reject]) => resolve(val));
                 queryWatchers = [];
                 return val;
@@ -90,23 +89,34 @@ export class Blinds {
 const minAngle = 50;
 const maxAngle = 300;
 const midAngle = (maxAngle + minAngle) / 2;
+
 function cleanValueTilt(v) {
-  let r = (v - minAngle) / (maxAngle - minAngle);
-  r = r * 180;
-  r = r - 90
-  return Math.min(90, Math.max(-90, Math.round(r)));
+    let r = v;
+    r = (v - minAngle) / (maxAngle - minAngle);
+    r = (r * 180) - 90;
+    return Math.min(90, Math.max(-90, Math.round(r)));
+}
+
+function uncleanValueTilt(v) {
+    let r = v;
+    r = (v + 90) / 180;
+    r = (r * (maxAngle - minAngle)) + minAngle;
+    return Math.min(maxAngle, Math.max(minAngle, Math.round(r)));
 }
 
 function cleanValueOpen(v) {
-  let r = (v - minAngle) / (midAngle - minAngle);
-  r = r * 100;
-  r = r * 2;
-  r = 100 - r;
-  return Math.min(100, Math.max(0, Math.round(r)));
+    let r = v;
+    r = (r - minAngle) / (midAngle - minAngle);
+    r = r * 100;
+    r = r * 2;
+    return Math.min(100, Math.max(0, Math.round(r)));
 }
 
 function uncleanValueOpen(v) {
-    let r = ((v / 100) * (midAngle - minAngle)) + minAngle;
+    let r = v;
+    r = r / 100;
+    r = r / 2
+    r = (r * (midAngle - minAngle)) + minAngle;
     return Math.min(maxAngle, Math.max(minAngle, Math.round(r)));
 }
 
@@ -149,7 +159,7 @@ export default class BlindsAccessory extends HomebridgeAccessory {
                 .on('get', callback => {
                     blindObj.getStatus().then(data => {
                         callback(null, cleanValueTilt(data.blinds[i].current));
-                    }).catch(err => {
+                    }).catch((err) => {
                         log.error(err);
                         callback(err);
                     });
@@ -159,14 +169,14 @@ export default class BlindsAccessory extends HomebridgeAccessory {
                 .on('get', callback => {
                     blindObj.getStatus().then(data => {
                         callback(null, cleanValueTilt(data.blinds[i].target));
-                    }).catch(err => {
+                    }).catch((err) => {
                         log.error(err);
                         callback(err);
                     });
                 })
                 .on('set', (value, callback) => {
-                    log.debug(`tilting blinds to ${value}`);
-                    blindObj.seek(value).then(() => {
+                    log.debug(`tilting blinds to ${value} ${uncleanValueTilt(value)}`);
+                    blindObj.seek(uncleanValueTilt(value)).then(() => {
                         callback();
                     }).catch((err) => {
                         log.error(err);
@@ -176,9 +186,11 @@ export default class BlindsAccessory extends HomebridgeAccessory {
             coveringService
                 .getCharacteristic(Characteristic.CurrentPosition)
                 .on('get', callback => {
+                    log.info('in CurrentPosition get');
                     blindObj.getStatus().then(data => {
+                        log.info(`current value: ${data.blinds[i].current}, ${cleanValueOpen(data.blinds[i].current)}`);
                         callback(null, cleanValueOpen(data.blinds[i].current));
-                    }).catch(err => {
+                    }).catch((err) => {
                         log.error(err);
                         callback(err);
                     });
@@ -187,8 +199,17 @@ export default class BlindsAccessory extends HomebridgeAccessory {
                 .getCharacteristic(Characteristic.TargetPosition)
                 .on('get', callback => {
                     blindObj.getStatus().then(data => {
-                        callback(null, cleanValueOpen(data.blinds[i].target));
-                    }).catch(err => {
+                        const target = data.blinds[i].target;
+                        const current = data.blinds[i].current;
+                        const cleanTarget = cleanValueOpen(target);
+                        const cleanCurrent = cleanValueOpen(current)
+                        log.info(`target value: ${data.blinds[i].target}, ${cleanTarget}`);
+                        if (Math.abs(target - current) > 10) {
+                            callback(null, cleanTarget);
+                        } else {
+                            callback(null, cleanCurrent);
+                        }
+                    }).catch((err) => {
                         log.error(err);
                         callback(err);
                     });
@@ -196,7 +217,6 @@ export default class BlindsAccessory extends HomebridgeAccessory {
                 .on('set', (value, callback) => {
                     log.debug(`seeking blinds to ${uncleanValueOpen(value)}`);
                     blindObj.seek(uncleanValueOpen(value)).then(() => {
-                        log.debug('****************** seeked');
                         callback();
                     }).catch((err) => {
                         log.error(err);
@@ -206,18 +226,16 @@ export default class BlindsAccessory extends HomebridgeAccessory {
             coveringService
                 .getCharacteristic(Characteristic.PositionState)
                 .on('get', callback => {
+                    log.info('PositionState get called');
                     blindObj.getStatus().then(data => {
                         switch (data.blinds[i].moving) {
                             case "stopped":
-                                log.debug('positionstate stopped');
                                 callback(null, Characteristic.PositionState.STOPPED);
                                 break;
                             case "positive":
-                                log.debug('positionstate positive');
                                 callback(null, Characteristic.PositionState.INCREASING);
                                 break;
                             case "negative":
-                                log.debug('positionstate negative');
                                 callback(null, Characteristic.PositionState.DECREASING);
                                 break;
                             default:
@@ -228,7 +246,7 @@ export default class BlindsAccessory extends HomebridgeAccessory {
                         log.error(err);
                         callback(err);
                     });
-                });
+                });;
             coveringService
                 .getCharacteristic(Characteristic.ObstructionDetected)
                 .on('get', callback => {

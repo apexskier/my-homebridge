@@ -8,6 +8,8 @@ import 'rxjs/add/operator/bufferWhen'
 import HomebridgeAccessory from '../homebridgeAccessory'
 import pkg from './package.json'
 import globalInfo from '../../globalInfo'
+import DeviceManager from '../deviceManager';
+
 
 /* accepts parameters
  * h  Object = {h:x, s:y, v:z}
@@ -91,8 +93,6 @@ export class SmartLight {
             queryRejected = false;
             queryFinished = false;
 
-            this.log.debug('new data query');
-
             return fetch(`${this.server}/status`, {
                 method: 'GET',
                 ...defaultFetchOptions,
@@ -101,10 +101,7 @@ export class SmartLight {
             .then(val => {
                 queryResolved = true;
                 queryFinished = true;
-                this.log.debug('resolving queryWatchers');
-                queryWatchers.forEach(([resolve]) => {
-                    resolve(val);
-                });
+                queryWatchers.forEach(([resolve, reject]) => resolve(val));
                 queryWatchers = [];
                 return val;
             })
@@ -115,11 +112,8 @@ export class SmartLight {
                 } else {
                     queryRejected = true;
                     queryFinished = true;
-                    this.log.error(err);
-                    this.log.debug('rejecting queryWatchers');
-                    queryWatchers.forEach(([resolve, reject]) => {
-                        reject(err);
-                    });
+                    if (this.log) this.log.error(err);
+                    queryWatchers.forEach(([resolve, reject]) => reject(err));
                     queryWatchers = [];
                     throw err;
                 }

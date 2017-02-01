@@ -2,86 +2,32 @@ import fetch from 'node-fetch'
 import husl from 'husl';
 import { Characteristic, Service } from 'hap-nodejs'
 import Rx from 'rxjs'
-import 'rxjs/add/operator/debounceTime'
 import 'rxjs/add/operator/bufferWhen'
 
 import HomebridgeAccessory from '../homebridgeAccessory'
 import pkg from './package.json'
 import globalInfo from '../../globalInfo'
+import DeviceManager from '../deviceManager';
 
 
-const defaultFetchOptions = {
-    timeout: 2000,
-};
+export class Blinds extends DeviceManager {
+    constructor(server, log, numBlinds) {
+        super(server, log);
 
-export class Blinds {
-    constructor(server, numBlinds, log, debounceTime = 500) {
-        this.server = server;
-        this.log = log;
-        this.debounceTime = debounceTime;
         this.numBlinds = numBlinds;
-
-        let queryWatchers = [];
-        let queryResolved = true;
-        let queryRejected = true;
-        let queryFinished = true;
-
-        const newQuery = (i = 0) => {
-            queryResolved = false;
-            queryRejected = false;
-            queryFinished = false;
-
-            return fetch(`${this.server}`, {
-                method: 'GET',
-                ...defaultFetchOptions,
-            })
-            .then(r => r.json())
-            .then(val => {
-                queryResolved = true;
-                queryFinished = true;
-                queryWatchers.forEach(([resolve, reject]) => resolve(val));
-                queryWatchers = [];
-                return val;
-            })
-            .catch(err => {
-                if (i > 4) {
-                    if (this.log) this.log.warn('retrying data query');
-                    return newQuery(i + 1);
-                } else {
-                    queryRejected = true;
-                    queryFinished = true;
-                    if (this.log) this.log.error(err);
-                    queryWatchers.forEach(([resolve, reject]) => reject(err));
-                    queryWatchers = [];
-                    throw err;
-                }
-            });
-        }
-
-        this.getStatus = () => {
-            const p = new Promise((resolve, reject) => {
-                queryWatchers.push([resolve, reject]);
-            });
-
-            if (queryFinished) {
-                newQuery();
-            }
-
-            return p;
-        }
     }
 
     stop() {
         return fetch(`${this.server}/stop`, {
             method: 'POST',
-            ...defaultFetchOptions,
+            ...this.defaultFetchOptions,
         });
     }
 
     seek(position, force = false) {
         return fetch(`${this.server}/?v=${position}${force ? '&f=*' : ''}`, {
             method: 'POST',
-            ...defaultFetchOptions,
+            ...this.defaultFetchOptions,
         });
     }
 }
@@ -108,14 +54,12 @@ function cleanValueOpen(v) {
     let r = v;
     r = (r - minAngle) / (midAngle - minAngle);
     r = r * 100;
-    r = r * 2;
     return Math.min(100, Math.max(0, Math.round(r)));
 }
 
 function uncleanValueOpen(v) {
     let r = v;
     r = r / 100;
-    r = r / 2
     r = (r * (midAngle - minAngle)) + minAngle;
     return Math.min(maxAngle, Math.max(minAngle, Math.round(r)));
 }
@@ -125,7 +69,7 @@ export default class BlindsAccessory extends HomebridgeAccessory {
     constructor(log, config) {
         super(log, config);
 
-        const blindObj = new Blinds('http://10.0.1.5', 1, log);
+        const blindObj = new Blinds('http://10.0.1.5', log, 1);
 
         const info = new Service.AccessoryInformation()
         info.setCharacteristic(Characteristic.Name, this.name);
@@ -180,7 +124,7 @@ export default class BlindsAccessory extends HomebridgeAccessory {
                         callback();
                     }).catch((err) => {
                         log.error(err);
-                        callback('error');
+                        callback(err);
                     });
                 });
             coveringService
@@ -246,7 +190,7 @@ export default class BlindsAccessory extends HomebridgeAccessory {
                         log.error(err);
                         callback(err);
                     });
-                });;
+                });
             coveringService
                 .getCharacteristic(Characteristic.ObstructionDetected)
                 .on('get', callback => {

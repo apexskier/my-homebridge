@@ -1,9 +1,14 @@
-import MagicMirror from './magicMirror';
-import SmartLightAccessory from './smartLight';
-import BlindsAccessory from './blinds';
+/* eslint-disable global-require */
+
+import fs from 'fs';
+import path from 'path';
 
 export default function (homebridge) {
-    homebridge.registerAccessory('homebridge-magicmirror', 'MagicMirror', MagicMirror);
-    homebridge.registerAccessory('homebridge-rgblight', 'SmartLight', SmartLightAccessory);
-    homebridge.registerAccessory('homebridge-blinds', 'Blinds', BlindsAccessory);
+    fs.readdirSync(__dirname)
+        .map(file => path.join(__dirname, file))
+        .filter(file => fs.statSync(file).isDirectory())
+        .forEach((file) => {
+            const packageName = require(path.join(file, 'package.json')).name;
+            homebridge.registerAccessory(packageName, packageName, require(file).default);
+        });
 }

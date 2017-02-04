@@ -10,11 +10,11 @@
 
     "accessories": [
         {
-            "accessory": "SmartLight",
+            "accessory": "apexskier-homebridge-smartlight",
             "name": "Bedside Light"
         },
         {
-            "accessory": "Blinds",
+            "accessory": "apexskier-homebridge-blinds",
             "name": "Bedroom Blinds"
         }
     ]

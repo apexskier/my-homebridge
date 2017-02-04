@@ -105,8 +105,6 @@ export class SmartLight extends DeviceManager {
                 // const [r, g, b] = husl.toRGB(h, s, l)
                 //     .map(comp => Math.min(255, Math.max(0, Math.round(comp * 255))));
                 const { r, g, b } = hsvToRgb(h / 360, s / 100, v / 100);
-                this.log.debug('setting color', { h, s, v }, { r, g, b });
-                this.log.debug(`${this.server}/color?duration=${this.debounceTime}&r=${r}&g=${g}&b=${b}`);
                 return fetch(`${this.server}/color?duration=${this.debounceTime}&r=${r}&g=${g}&b=${b}`, {
                     method: 'POST',
                     ...this.defaultFetchOptions,
@@ -130,12 +128,10 @@ export class SmartLight extends DeviceManager {
     getColor() {
         return this.getStatus()
         .then((data) => {
-            const { r, g, b } = data.color;
             let { h, s, v } = rgbToHsv(data.color);
             h *= 360;
             s *= 100;
             v *= 100;
-            this.log.debug('in getColor returning', { h, s, v }, { r, g, b });
             if (data.on) {
                 this.lastColor = { h, s, v };
             }

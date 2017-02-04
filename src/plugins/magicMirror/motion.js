@@ -1,6 +1,6 @@
-import { Characteristic, Service } from 'hap-nodejs'
-import Rx from 'rxjs'
-import socketIO from 'socket.io'
+import { Characteristic, Service } from 'hap-nodejs';
+import Rx from 'rxjs';
+import socketIO from 'socket.io';
 
 export default function create(name, log, port) {
     const io = socketIO(port);
@@ -32,12 +32,12 @@ export default function create(name, log, port) {
 
         socket.on('motion', (data) => {
             if (data.val > 3) {
-                log.debug('motion', data)
+                log.debug('motion', data);
                 motionService
                     .setCharacteristic(Characteristic.MotionDetected, true);
                 clearTimeout(motionTimeout);
                 motionTimeout = setTimeout(() => {
-                    log.debug('no motion', data)
+                    log.debug('no motion', data);
                     motionService
                         .setCharacteristic(Characteristic.MotionDetected, false);
                 }, 3000);

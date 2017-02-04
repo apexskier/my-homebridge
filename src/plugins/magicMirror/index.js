@@ -1,21 +1,21 @@
-import { Characteristic, Service } from 'hap-nodejs'
+import { Characteristic, Service } from 'hap-nodejs';
 
-import pkg from './package.json'
-import globalInfo from '../../globalInfo'
-import HomebridgeAccessory from '../homebridgeAccessory'
-import createPowerService from './power.js'
-import createMotionSensorService from './motion.js'
+import pkg from './package.json';
+import globalInfo from '../../globalInfo';
+import HomebridgeAccessory from '../homebridgeAccessory';
+import createPowerService from './power.js';
+import createMotionSensorService from './motion.js';
 
 
 export default class MagicMirror extends HomebridgeAccessory {
     constructor(log, config) {
         super(log, config);
 
-        const info = new Service.AccessoryInformation()
+        const info = new Service.AccessoryInformation();
         info.setCharacteristic(Characteristic.Name, this.name);
         info.setCharacteristic(Characteristic.Manufacturer, globalInfo.Manufacturer);
         info.setCharacteristic(Characteristic.Model, pkg.name);
-        info.setCharacteristic(Characteristic.SerialNumber, config['serial']);
+        info.setCharacteristic(Characteristic.SerialNumber, config.serial);
         info.setCharacteristic(Characteristic.SoftwareRevision, pkg.version);
 
         const magicMirrorPowerService = createPowerService(this.name, this.log);

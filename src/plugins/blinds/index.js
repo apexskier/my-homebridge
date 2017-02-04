@@ -1,12 +1,12 @@
-import fetch from 'node-fetch'
+import fetch from 'node-fetch';
 import husl from 'husl';
-import { Characteristic, Service } from 'hap-nodejs'
-import Rx from 'rxjs'
-import 'rxjs/add/operator/bufferWhen'
+import { Characteristic, Service } from 'hap-nodejs';
+import Rx from 'rxjs';
+import 'rxjs/add/operator/bufferWhen';
 
-import HomebridgeAccessory from '../homebridgeAccessory'
-import pkg from './package.json'
-import globalInfo from '../../globalInfo'
+import HomebridgeAccessory from '../homebridgeAccessory';
+import pkg from './package.json';
+import globalInfo from '../../globalInfo';
 import DeviceManager from '../deviceManager';
 
 
@@ -53,13 +53,13 @@ function uncleanValueTilt(v) {
 function cleanValueOpen(v) {
     let r = v;
     r = (r - minAngle) / (midAngle - minAngle);
-    r = r * 100;
+    r *= 100;
     return Math.min(100, Math.max(0, Math.round(r)));
 }
 
 function uncleanValueOpen(v) {
     let r = v;
-    r = r / 100;
+    r /= 100;
     r = (r * (midAngle - minAngle)) + minAngle;
     return Math.min(maxAngle, Math.max(minAngle, Math.round(r)));
 }
@@ -71,7 +71,7 @@ export default class BlindsAccessory extends HomebridgeAccessory {
 
         const blindObj = new Blinds('http://10.0.1.5', log, 1);
 
-        const info = new Service.AccessoryInformation()
+        const info = new Service.AccessoryInformation();
         info.setCharacteristic(Characteristic.Name, this.name);
         info.setCharacteristic(Characteristic.Manufacturer, globalInfo.Manufacturer);
         info.setCharacteristic(Characteristic.Model, pkg.name);
@@ -88,13 +88,13 @@ export default class BlindsAccessory extends HomebridgeAccessory {
                 lightSensorService
                     .setCharacteristic(Characteristic.CurrentAmbientLightLevel, data.luminance);
                 setTimeout(lightSensorLoop, 10000);
-            }).catch(err => {
+            }).catch((err) => {
                 lightSensorService
                     .setCharacteristic(Characteristic.StatusActive, false);
                 setTimeout(lightSensorLoop, 10000);
                 log.error(err);
             });
-        })();
+        }());
 
         for (let i = 0; i < blindObj.numBlinds; i++) {
             const coveringService = new Service.WindowCovering();
@@ -110,30 +110,29 @@ export default class BlindsAccessory extends HomebridgeAccessory {
                 .on('get', this.doGet(() => blindObj.getStatus().then(data => cleanValueOpen(data.blinds[i].current))));
             coveringService
                 .getCharacteristic(Characteristic.TargetPosition)
-                .on('get', this.doGet(() => blindObj.getStatus().then(data => {
+                .on('get', this.doGet(() => blindObj.getStatus().then((data) => {
                     const target = data.blinds[i].target;
                     const current = data.blinds[i].current;
                     const cleanTarget = cleanValueOpen(target);
                     const cleanCurrent = cleanValueOpen(current);
                     if (Math.abs(target - current) > 10) {
                         return cleanTarget;
-                    } else {
-                        return cleanCurrent;
                     }
+                    return cleanCurrent;
                 })))
                 .on('set', this.doSet(value => blindObj.seek(uncleanValueOpen(value))));
             coveringService
                 .getCharacteristic(Characteristic.PositionState)
-                .on('get', this.doGet(() => blindObj.getStatus.then(data => {
+                .on('get', this.doGet(() => blindObj.getStatus.then((data) => {
                     switch (data.blinds[i].moving) {
-                        case "stopped":
-                            return Characteristic.PositionState.STOPPED;
-                        case "positive":
-                            return Characteristic.PositionState.INCREASING;
-                        case "negative":
-                            return Characteristic.PositionState.DECREASING;
-                        default:
-                            throw Error('unexpected PositionState');
+                    case 'stopped':
+                        return Characteristic.PositionState.STOPPED;
+                    case 'positive':
+                        return Characteristic.PositionState.INCREASING;
+                    case 'negative':
+                        return Characteristic.PositionState.DECREASING;
+                    default:
+                        throw Error('unexpected PositionState');
                     }
                 })));
             coveringService

@@ -1,7 +1,7 @@
 export default class HomebridgeAccessory {
     constructor(log, config) {
         this.log = log;
-        this.name = config['name'];
+        this.name = config.name;
         this.services = [];
     }
 
@@ -10,10 +10,10 @@ export default class HomebridgeAccessory {
     }
 
     doGet(getValue) {
-        return callback => {
+        return (callback) => {
             getValue()
                 .then(v => callback(null, v))
-                .catch(err => {
+                .catch((err) => {
                     this.log.error('get', err);
                     callback(err);
                 });
@@ -24,7 +24,7 @@ export default class HomebridgeAccessory {
         return (value, callback) => {
             setValue(value)
                 .then(v => callback(null, v))
-                .catch(err => {
+                .catch((err) => {
                     this.log.error('set', err);
                     callback(err);
                 });

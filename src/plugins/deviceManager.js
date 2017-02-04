@@ -1,4 +1,4 @@
-import fetch from 'node-fetch'
+import fetch from 'node-fetch';
 
 
 export default class DeviceManager {
@@ -27,27 +27,26 @@ export default class DeviceManager {
                 ...this.defaultFetchOptions,
             })
             .then(r => r.json())
-            .then(val => {
+            .then((val) => {
                 queryResolved = true;
                 queryFinished = true;
                 queryWatchers.forEach(([resolve, reject]) => resolve(val));
                 queryWatchers = [];
                 return val;
             })
-            .catch(err => {
+            .catch((err) => {
                 if (i > 4) {
                     if (this.log) this.log.warn(`retrying data query for ${this.constructor.name}`);
                     return newQuery(i + 1);
-                } else {
-                    queryRejected = true;
-                    queryFinished = true;
-                    if (this.log) this.log.error(err);
-                    queryWatchers.forEach(([resolve, reject]) => reject(err));
-                    queryWatchers = [];
-                    throw err;
                 }
+                queryRejected = true;
+                queryFinished = true;
+                if (this.log) this.log.error(err);
+                queryWatchers.forEach(([resolve, reject]) => reject(err));
+                queryWatchers = [];
+                throw err;
             });
-        }
+        };
 
         this.getStatus = () => {
             const p = new Promise((resolve, reject) => {
@@ -59,7 +58,7 @@ export default class DeviceManager {
             }
 
             return p;
-        }
+        };
     }
 }
 

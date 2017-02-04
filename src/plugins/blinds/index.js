@@ -89,10 +89,10 @@ export default class BlindsAccessory extends HomebridgeAccessory {
                     .setCharacteristic(Characteristic.CurrentAmbientLightLevel, data.luminance);
                 setTimeout(lightSensorLoop, 10000);
             }).catch(err => {
-                log.error(err);
-                setTimeout(lightSensorLoop, 10000);
                 lightSensorService
                     .setCharacteristic(Characteristic.StatusActive, false);
+                setTimeout(lightSensorLoop, 10000);
+                log.error(err);
             });
         })();
 
@@ -132,7 +132,6 @@ export default class BlindsAccessory extends HomebridgeAccessory {
                 .on('get', callback => {
                     log.info('in CurrentPosition get');
                     blindObj.getStatus().then(data => {
-                        log.info(`current value: ${data.blinds[i].current}, ${cleanValueOpen(data.blinds[i].current)}`);
                         callback(null, cleanValueOpen(data.blinds[i].current));
                     }).catch((err) => {
                         log.error(err);
@@ -164,7 +163,7 @@ export default class BlindsAccessory extends HomebridgeAccessory {
                         callback();
                     }).catch((err) => {
                         log.error(err);
-                        callback('error');
+                        callback(err);
                     });
                 });
             coveringService

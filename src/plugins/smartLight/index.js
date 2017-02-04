@@ -71,66 +71,14 @@ function RGBtoHSV(r, g, b) {
 }
 
 
-const defaultFetchOptions = {
-    timeout: 2000,
-};
+export class SmartLight extends DeviceManager {
+    infoPath = "status";
 
-export class SmartLight {
     constructor(server, log, debounceTime = 500) {
-        this.server = server;
-        this.log = log;
+        super(server, log);
+
         this.debounceTime = debounceTime;
-
         this.lastColor = { h: 0, s: 0, v: 100 };
-
-        let queryWatchers = [];
-        let queryResolved = true;
-        let queryRejected = true;
-        let queryFinished = true;
-
-        const newQuery = (i = 0) => {
-            queryResolved = false;
-            queryRejected = false;
-            queryFinished = false;
-
-            return fetch(`${this.server}/status`, {
-                method: 'GET',
-                ...defaultFetchOptions,
-            })
-            .then(response => response.json())
-            .then(val => {
-                queryResolved = true;
-                queryFinished = true;
-                queryWatchers.forEach(([resolve, reject]) => resolve(val));
-                queryWatchers = [];
-                return val;
-            })
-            .catch(err => {
-                if (i > 4) {
-                    this.log.warn('retrying data query');
-                    return newQuery(i + 1);
-                } else {
-                    queryRejected = true;
-                    queryFinished = true;
-                    if (this.log) this.log.error(err);
-                    queryWatchers.forEach(([resolve, reject]) => reject(err));
-                    queryWatchers = [];
-                    throw err;
-                }
-            });
-        }
-
-        this.getStatus = () => {
-            const p = new Promise((resolve, reject) => {
-                queryWatchers.push([resolve, reject]);
-            });
-
-            if (queryResolved) {
-                newQuery();
-            }
-
-            return p;
-        }
 
         this.requestDebounced = new Rx.Subject();
         this.requestBuffer = new Rx.Subject();
@@ -154,7 +102,7 @@ export class SmartLight {
                 this.log.debug(`${this.server}/color?duration=${this.debounceTime}&r=${r}&g=${g}&b=${b}`);
                 return fetch(`${this.server}/color?duration=${this.debounceTime}&r=${r}&g=${g}&b=${b}`, {
                     method: 'POST',
-                    ...defaultFetchOptions,
+                    ...this.defaultFetchOptions,
                 })
                 .then(r => r.json());
             })
@@ -192,7 +140,7 @@ export class SmartLight {
     turnOff() {
         return fetch(`${this.server}/off`, {
             method: 'GET',
-            ...defaultFetchOptions,
+            ...this.defaultFetchOptions,
         })
         .then(r => r.json());
     }

@@ -100,106 +100,45 @@ export default class BlindsAccessory extends HomebridgeAccessory {
             const coveringService = new Service.WindowCovering();
             coveringService
                 .getCharacteristic(Characteristic.CurrentHorizontalTiltAngle)
-                .on('get', callback => {
-                    blindObj.getStatus().then(data => {
-                        callback(null, cleanValueTilt(data.blinds[i].current));
-                    }).catch((err) => {
-                        log.error(err);
-                        callback(err);
-                    });
-                });
+                .on('get', this.doGet(() => blindObj.getStatus().then(data => cleanValueTilt(data.blinds[i].current))));
             coveringService
                 .getCharacteristic(Characteristic.TargetHorizontalTiltAngle)
-                .on('get', callback => {
-                    blindObj.getStatus().then(data => {
-                        callback(null, cleanValueTilt(data.blinds[i].target));
-                    }).catch((err) => {
-                        log.error(err);
-                        callback(err);
-                    });
-                })
-                .on('set', (value, callback) => {
-                    log.debug(`tilting blinds to ${value} ${uncleanValueTilt(value)}`);
-                    blindObj.seek(uncleanValueTilt(value)).then(() => {
-                        callback();
-                    }).catch((err) => {
-                        log.error(err);
-                        callback(err);
-                    });
-                });
+                .on('get', this.doGet(() => blindObj.getStatus().then(data => cleanValueTilt(data.blinds[i].target))))
+                .on('set', this.doSet(value => blindObj.seek(uncleanValueTilt(value))));
             coveringService
                 .getCharacteristic(Characteristic.CurrentPosition)
-                .on('get', callback => {
-                    log.info('in CurrentPosition get');
-                    blindObj.getStatus().then(data => {
-                        callback(null, cleanValueOpen(data.blinds[i].current));
-                    }).catch((err) => {
-                        log.error(err);
-                        callback(err);
-                    });
-                });
+                .on('get', this.doGet(() => blindObj.getStatus().then(data => cleanValueOpen(data.blinds[i].current))));
             coveringService
                 .getCharacteristic(Characteristic.TargetPosition)
-                .on('get', callback => {
-                    blindObj.getStatus().then(data => {
-                        const target = data.blinds[i].target;
-                        const current = data.blinds[i].current;
-                        const cleanTarget = cleanValueOpen(target);
-                        const cleanCurrent = cleanValueOpen(current)
-                        log.info(`target value: ${data.blinds[i].target}, ${cleanTarget}`);
-                        if (Math.abs(target - current) > 10) {
-                            callback(null, cleanTarget);
-                        } else {
-                            callback(null, cleanCurrent);
-                        }
-                    }).catch((err) => {
-                        log.error(err);
-                        callback(err);
-                    });
-                })
-                .on('set', (value, callback) => {
-                    log.debug(`seeking blinds to ${uncleanValueOpen(value)}`);
-                    blindObj.seek(uncleanValueOpen(value)).then(() => {
-                        callback();
-                    }).catch((err) => {
-                        log.error(err);
-                        callback(err);
-                    });
-                });
+                .on('get', this.doGet(() => blindObj.getStatus().then(data => {
+                    const target = data.blinds[i].target;
+                    const current = data.blinds[i].current;
+                    const cleanTarget = cleanValueOpen(target);
+                    const cleanCurrent = cleanValueOpen(current);
+                    if (Math.abs(target - current) > 10) {
+                        return cleanTarget;
+                    } else {
+                        return cleanCurrent;
+                    }
+                })))
+                .on('set', this.doSet(value => blindObj.seek(uncleanValueOpen(value))));
             coveringService
                 .getCharacteristic(Characteristic.PositionState)
-                .on('get', callback => {
-                    log.info('PositionState get called');
-                    blindObj.getStatus().then(data => {
-                        switch (data.blinds[i].moving) {
-                            case "stopped":
-                                callback(null, Characteristic.PositionState.STOPPED);
-                                break;
-                            case "positive":
-                                callback(null, Characteristic.PositionState.INCREASING);
-                                break;
-                            case "negative":
-                                callback(null, Characteristic.PositionState.DECREASING);
-                                break;
-                            default:
-                                log.warn('positionstate unexpected');
-                                callback('something unexpected');
-                        }
-                    }).catch(err => {
-                        log.error(err);
-                        callback(err);
-                    });
-                });
+                .on('get', this.doGet(() => blindObj.getStatus.then(data => {
+                    switch (data.blinds[i].moving) {
+                        case "stopped":
+                            return Characteristic.PositionState.STOPPED;
+                        case "positive":
+                            return Characteristic.PositionState.INCREASING;
+                        case "negative":
+                            return Characteristic.PositionState.DECREASING;
+                        default:
+                            throw Error('unexpected PositionState');
+                    }
+                })));
             coveringService
                 .getCharacteristic(Characteristic.ObstructionDetected)
-                .on('get', callback => {
-                    blindObj.getStatus().then(data => {
-                        callback(null, data.blinds[i].obstructed);
-                    }).catch(err => {
-                        log.error(err);
-                        callback(err);
-                    });
-                });
+                .on('get', this.doGet(() => blindObj.getStatus().then(data => data.blinds[i].obstructed)));
 
             this.services = [
                 lightSensorService,

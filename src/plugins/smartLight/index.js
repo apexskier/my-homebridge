@@ -153,7 +153,7 @@ export class SmartLight extends DeviceManager {
         return new Promise((resolve, reject) => {
             this.requestBuffer.next([ color, resolve, reject ]);
             this.requestDebounced.next(true);
-        })
+        });
     }
 }
 
@@ -174,88 +174,29 @@ export default class SmartLightAccessory extends HomebridgeAccessory {
             .setCharacteristic(Characteristic.Name, 'Bedside Light');
         rgbLightService
             .getCharacteristic(Characteristic.On)
-            .on('get', (callback) => {
-                rgbLight.getStatus().then((data) => {
-                    callback(null, data.on);
-                }).catch(err => {
-                    log.error(err);
-                    callback(err);
-                });
-            })
-            .on('set', (state, callback) => {
+            .on('get', this.doGet(() => rgbLight.getStatus().then(d => d.on)))
+            .on('set', this.doSet(state => {
                 if (state) {
-                    rgbLight.turnOn()
-                        .then(r => callback(null, r))
-                        .catch(err => {
-                            log.error(err);
-                            callback(err);
-                        });
+                    return rgbLight.turnOn();
                 } else {
-                    rgbLight.turnOff()
-                        .then(r => callback(null, r))
-                        .catch(err => {
-                            log.error(err);
-                            callback(err);
-                        });
+                    return rgbLight.turnOff();
                 }
-            });
+            }));
 
         rgbLightService
             .getCharacteristic(Characteristic.Brightness)
-            .on('get', (callback) => {
-                rgbLight.getColor().then(({ v }) => {
-                    callback(null, v);
-                }).catch(err => {
-                    log.error(err);
-                    callback(err);
-                });
-            })
-            .on('set', (v, callback) => {
-                rgbLight.setColor({ v })
-                    .then(r => callback(null, r))
-                    .catch(err => {
-                        log.error(err);
-                        callback(err);
-                    });
-            });
+            .on('get', this.doGet(() => rgbLight.getColor().then(({ v }) => v)))
+            .on('set', this.doSet(v => rgbLight.setColor({ v })));
 
         rgbLightService
             .getCharacteristic(Characteristic.Saturation)
-            .on('get', (callback) => {
-                rgbLight.getColor().then(({ s }) => {
-                    callback(null, s);
-                }).catch(err => {
-                    log.error(err);
-                    callback(err);
-                });
-            })
-            .on('set', (s, callback) => {
-                rgbLight.setColor({ s })
-                    .then(r => callback(null, r))
-                    .catch(err => {
-                        log.error(err);
-                        callback(err);
-                    });
-            });
+            .on('get', this.doGet(() => rgbLight.getColor().then(({ s }) => s)))
+            .on('set', this.doSet(s => rgbLight.setColor({ s })));
 
         rgbLightService
             .getCharacteristic(Characteristic.Hue)
-            .on('get', (callback) => {
-                rgbLight.getColor().then(({ h }) => {
-                    callback(null, h);
-                }).catch(err => {
-                    log.error(err);
-                    callback(err);
-                });
-            })
-            .on('set', (h, callback) => {
-                rgbLight.setColor({ h })
-                    .then(r => callback(null, r))
-                    .catch(err => {
-                        log.error(err);
-                        callback(err);
-                    });
-            });
+            .on('get', this.doGet(() => rgbLight.getColor().then(({ h }) => h)))
+            .on('set', this.doSet(h => rgbLight.setColor({ h })));
 
         this.services = [
             rgbLightService

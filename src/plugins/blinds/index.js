@@ -1,7 +1,5 @@
 import fetch from 'node-fetch';
-import husl from 'husl';
 import { Characteristic, Service } from 'hap-nodejs';
-import Rx from 'rxjs';
 import 'rxjs/add/operator/bufferWhen';
 
 import HomebridgeAccessory from '../homebridgeAccessory';
@@ -96,7 +94,7 @@ export default class BlindsAccessory extends HomebridgeAccessory {
             });
         }());
 
-        for (let i = 0; i < blindObj.numBlinds; i++) {
+        for (let i = 0; i < blindObj.numBlinds; i += 1) {
             const coveringService = new Service.WindowCovering();
             coveringService
                 .getCharacteristic(Characteristic.CurrentHorizontalTiltAngle)

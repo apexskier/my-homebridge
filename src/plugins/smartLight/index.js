@@ -1,5 +1,5 @@
 import fetch from 'node-fetch';
-import husl from 'husl';
+// import husl from 'husl';
 import { Characteristic, Service } from 'hap-nodejs';
 import Rx from 'rxjs';
 import 'rxjs/add/operator/debounceTime';
@@ -11,12 +11,13 @@ import globalInfo from '../../globalInfo';
 import DeviceManager from '../deviceManager';
 
 
+/* eslint-disable */
 /* accepts parameters
  * h  Object = {h:x, s:y, v:z}
  * OR
  * h, s, v
 */
-function HSVtoRGB(h, s, v) {
+function hsvToRgb(h, s, v) {
     let r,
         g,
         b,
@@ -53,7 +54,7 @@ function HSVtoRGB(h, s, v) {
  * OR
  * r, g, b
 */
-function RGBtoHSV(r, g, b) {
+function rgbToHsv(r, g, b) {
     if (arguments.length === 1) {
         g = r.g, b = r.b, r = r.r;
     }
@@ -66,9 +67,9 @@ function RGBtoHSV(r, g, b) {
 
     switch (max) {
     case min: h = 0; break;
-    case r: h = (g - b) + d * (g < b ? 6 : 0); h /= 6 * d; break;
-    case g: h = (b - r) + d * 2; h /= 6 * d; break;
-    case b: h = (r - g) + d * 4; h /= 6 * d; break;
+    case r: h = (g - b) + (d * (g < b ? 6 : 0)); h /= 6 * d; break;
+    case g: h = (b - r) + (d * 2); h /= 6 * d; break;
+    case b: h = (r - g) + (d * 4); h /= 6 * d; break;
     }
 
     return {
@@ -77,7 +78,7 @@ function RGBtoHSV(r, g, b) {
         v,
     };
 }
-
+/* eslint-enable */
 
 export class SmartLight extends DeviceManager {
     infoPath = 'status';
@@ -103,18 +104,17 @@ export class SmartLight extends DeviceManager {
                 const { h = currentColor.h, s = currentColor.s, v = currentColor.v } = color;
                 // const [r, g, b] = husl.toRGB(h, s, l)
                 //     .map(comp => Math.min(255, Math.max(0, Math.round(comp * 255))));
-                const { r, g, b } = HSVtoRGB(h / 360, s / 100, v / 100);
+                const { r, g, b } = hsvToRgb(h / 360, s / 100, v / 100);
                 this.log.debug('setting color', { h, s, v }, { r, g, b });
                 this.log.debug(`${this.server}/color?duration=${this.debounceTime}&r=${r}&g=${g}&b=${b}`);
                 return fetch(`${this.server}/color?duration=${this.debounceTime}&r=${r}&g=${g}&b=${b}`, {
                     method: 'POST',
                     ...this.defaultFetchOptions,
-                })
-                .then(r => r.json());
+                }).then(res => res.json());
             })
             .then((data) => {
                 // const [h, s, l] = husl.fromRGB(data.r / 255, data.g / 255, data.b / 255);
-                let { h, s, v } = RGBtoHSV(data);
+                let { h, s, v } = rgbToHsv(data);
                 h *= 360;
                 s *= 100;
                 v *= 100;
@@ -131,7 +131,7 @@ export class SmartLight extends DeviceManager {
         return this.getStatus()
         .then((data) => {
             const { r, g, b } = data.color;
-            let { h, s, v } = RGBtoHSV(data.color);
+            let { h, s, v } = rgbToHsv(data.color);
             h *= 360;
             s *= 100;
             v *= 100;

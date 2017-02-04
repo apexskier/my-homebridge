@@ -1,5 +1,4 @@
 import { Characteristic, Service } from 'hap-nodejs';
-import Rx from 'rxjs';
 import socketIO from 'socket.io';
 
 export default function create(name, log, port) {
@@ -18,7 +17,7 @@ export default function create(name, log, port) {
         let faceTimeout;
         let motionTimeout;
 
-        socket.on('faces', (data) => {
+        socket.on('faces', () => {
             log.debug('faces');
             occupancySensor
                 .setCharacteristic(Characteristic.OccupancyDetected, Characteristic.OccupancyDetected.OCCUPANCY_DETECTED);

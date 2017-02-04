@@ -2,6 +2,7 @@ import { exec } from 'child_process';
 import { Characteristic, Service } from 'hap-nodejs';
 
 
+/* eslint-disable */
 const VC_SDTV_UNPLUGGED = 1 << 16; // SDTV cable unplugged, subject to platform support
 const VC_SDTV_ATTACHED = 1 << 17; // SDTV cable is plugged in
 const VC_SDTV_NTSC = 1 << 18; // SDTV is in NTSC mode
@@ -18,6 +19,7 @@ const VC_HDMI_HDCP_AUTH = 1 << 5;  // HDCP is active
 const VC_HDMI_HDCP_KEY_DOWNLOAD = 1 << 6;  // HDCP key download successful/fail
 const VC_HDMI_HDCP_SRM_DOWNLOAD = 1 << 7;  // HDCP revocation list download successful/fail
 const VC_HDMI_CHANGING_MODE = 1 << 8;  // HDMI is starting to change mode, clock has not yet been set
+/* eslint-enable */
 
 export default function create(name, log) {
     const magicMirrorPowerService = new Service.Switch(`${name} TV`);
@@ -29,16 +31,16 @@ export default function create(name, log) {
                     callback(err);
                 } else {
                     log.debug(err, stdout, stderr);
-                    const state = parseInt(stdout.split(/\s/)[1]);
+                    const state = parseInt(stdout.split(/\s/)[1], 10);
                     log.debug(state);
-                    if (state & (VC_HDMI_HDMI | VC_HDMI_DVI)) {
+                    if (state & (VC_HDMI_HDMI | VC_HDMI_DVI)) { // eslint-disable-line no-bitwise
                         callback(null, true);
-                    } else if (state & (VC_HDMI_UNPLUGGED | VC_HDMI_ATTACHED)) {
+                    } else if (state & (VC_HDMI_UNPLUGGED | VC_HDMI_ATTACHED)) { // eslint-disable-line no-bitwise
                         callback(null, false);
                     } else {
-                        const err = new Error('Unhandled tv state', state);
-                        log.error(err);
-                        callback(err);
+                        const stateErr = new Error('Unhandled tv state', state);
+                        log.error(stateErr);
+                        callback(stateErr);
                     }
                 }
             });

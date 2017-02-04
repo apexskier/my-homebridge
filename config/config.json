@@ -1,7 +1,7 @@
 {
     "bridge": {
         "name": "Apexskier Homebridge",
-        "username": "AA:EA:70:44:E6:B8",
+        "username": "AA:EA:70:44:E6:00",
         "port": 51826,
         "pin": "147-63-768"
     },
@@ -9,10 +9,6 @@
     "description": "My fancy connected home controller.",
 
     "accessories": [
-        {
-            "accessory": "MagicMirror",
-            "name": "Magic Mirror"
-        },
         {
             "accessory": "SmartLight",
             "name": "Bedside Light"

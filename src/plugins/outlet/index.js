@@ -25,15 +25,11 @@ export class Switch extends DeviceManager {
             method: 'POST',
             ...this.defaultFetchOptions,
         })
-        .then(r => r.ok)
-        .then(r => {
-            console.log(r);
-            return r;
-        });
+        .then(r => r.ok);
     }
 }
 
-export default class SwitchAccessory extends HomebridgeAccessory {
+export default class OutletAccessory extends HomebridgeAccessory {
     constructor(log, config) {
         super(log, config);
 
@@ -45,14 +41,15 @@ export default class SwitchAccessory extends HomebridgeAccessory {
         info.setCharacteristic(Characteristic.Model, pkg.name);
         info.setCharacteristic(Characteristic.SoftwareRevision, pkg.version);
 
-        const switchService = new Service.Switch();
-        switchService
+        const outletService = new Service.Outlet();
+        outletService
             .getCharacteristic(Characteristic.On)
-            .on('get', this.doGet(() => obj.getStatus()))
+            .on('get', this.doGet(() => obj.getStatus().then(data => (this.reverse ? !data.open : data.open))))
             .on('set', this.doSet(value => obj.set(value)));
+        outletService.setCharacteristic(Characteristic.OutletInUse, true);
 
         this.services = [
-            switchService,
+            outletService,
         ];
     }
 }

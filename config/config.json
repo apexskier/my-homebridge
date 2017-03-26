@@ -18,8 +18,8 @@
             "name": "Bedroom Blinds"
         },
         {
-            "accessory": "apexskier-homebridge-switch",
-            "name": "Switch Box"
+            "accessory": "apexskier-homebridge-outlet",
+            "name": "Outlet Box"
         }
     ]
 }

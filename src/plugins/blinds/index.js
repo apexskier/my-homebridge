@@ -94,6 +94,10 @@ export default class BlindsAccessory extends HomebridgeAccessory {
             });
         }());
 
+        this.services = [
+            lightSensorService,
+        ];
+
         for (let i = 0; i < blindObj.numBlinds; i += 1) {
             const coveringService = new Service.WindowCovering();
             coveringService
@@ -137,10 +141,7 @@ export default class BlindsAccessory extends HomebridgeAccessory {
                 .getCharacteristic(Characteristic.ObstructionDetected)
                 .on('get', this.doGet(() => blindObj.getStatus().then(data => data.blinds[i].obstructed)));
 
-            this.services = [
-                lightSensorService,
-                coveringService,
-            ];
+            this.services.push(coveringService);
         }
     }
 }

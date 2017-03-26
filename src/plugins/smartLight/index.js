@@ -151,6 +151,14 @@ export class SmartLight extends DeviceManager {
         return this.setColor(this.lastColor);
     }
 
+    startSunrise() {
+        return fetch(`${this.server}/sunrise`, {
+            method: 'GET',
+            ...this.defaultFetchOptions,
+        })
+        .then(r => r.json());
+    }
+
     setColor(color) {
         return new Promise((resolve, reject) => {
             this.requestBuffer.next([color, resolve, reject]);
@@ -183,23 +191,34 @@ export default class SmartLightAccessory extends HomebridgeAccessory {
                 }
                 return rgbLight.turnOff();
             }));
-
         rgbLightService
             .getCharacteristic(Characteristic.Brightness)
             .on('get', this.doGet(() => rgbLight.getColor().then(({ v }) => v)))
             .on('set', this.doSet(v => rgbLight.setColor({ v })));
-
         rgbLightService
             .getCharacteristic(Characteristic.Saturation)
             .on('get', this.doGet(() => rgbLight.getColor().then(({ s }) => s)))
             .on('set', this.doSet(s => rgbLight.setColor({ s })));
-
         rgbLightService
             .getCharacteristic(Characteristic.Hue)
             .on('get', this.doGet(() => rgbLight.getColor().then(({ h }) => h)))
             .on('set', this.doSet(h => rgbLight.setColor({ h })));
 
+        const sunriseService = new Service.StatefulProgrammableSwitch('Wake Up Switch');
+        sunriseService.setCharacteristic(Characteristic.Name, 'Wake Up');
+        sunriseService
+            .getCharacteristic(Characteristic.ProgrammableSwitchOutputState)
+            .on('set', this.doSet(v => {
+                log.info("received switch output state", v);
+                rgbLight.startSunrise();
+            }))
+            .on('get', this.doGet(() => rgbLight.getStatus().then(data => ((data.state === -2) ? 1 : 0))));
+        sunriseService
+            .getCharacteristic(Characteristic.ProgrammableSwitchEvent)
+            .on('get', this.doGet(() => 0));
+
         this.services = [
+            sunriseService,
             rgbLightService,
         ];
     }

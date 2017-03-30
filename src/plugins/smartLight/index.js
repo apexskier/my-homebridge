@@ -5,9 +5,8 @@ import Rx from 'rxjs';
 import 'rxjs/add/operator/debounceTime';
 import 'rxjs/add/operator/bufferWhen';
 
-import HomebridgeAccessory from '../homebridgeAccessory';
+import { createAccessory, doGet, doSet } from '../accessory';
 import pkg from './package.json';
-import globalInfo from '../../globalInfo';
 import DeviceManager from '../deviceManager';
 
 
@@ -80,11 +79,11 @@ function rgbToHsv(r, g, b) {
 }
 /* eslint-enable */
 
-export class SmartLight extends DeviceManager {
+class SmartLight extends DeviceManager {
     infoPath = 'status';
 
-    constructor(server, log, debounceTime = 500) {
-        super(server, log);
+    constructor(server, debounceTime = 500) {
+        super(server);
 
         this.debounceTime = debounceTime;
         this.lastColor = { h: 0, s: 0, v: 100 };
@@ -167,60 +166,51 @@ export class SmartLight extends DeviceManager {
     }
 }
 
-export default class SmartLightAccessory extends HomebridgeAccessory {
-    constructor(log, config) {
-        super(log, config);
+const rgbLight = new SmartLight('http://10.0.1.4');
+const smartLightAccessory = createAccessory('Bedside Light', '00ee0763-637a-4fad-8e4c-7cd5c7fb8fea');
 
-        const rgbLight = new SmartLight('http://10.0.1.4', log);
+smartLightAccessory
+    .getService(Service.AccessoryInformation)
+    .setCharacteristic(Characteristic.Manufacturer, 'apexskier')
+    .setCharacteristic(Characteristic.Model, pkg.name)
+    .setCharacteristic(Characteristic.SoftwareRevision, pkg.version);
 
-        const info = new Service.AccessoryInformation();
-        info.setCharacteristic(Characteristic.Name, this.name);
-        info.setCharacteristic(Characteristic.Manufacturer, globalInfo.Manufacturer);
-        info.setCharacteristic(Characteristic.Model, pkg.name);
-        info.setCharacteristic(Characteristic.SoftwareRevision, pkg.version);
+const rgbLightService = smartLightAccessory
+    .addService(Service.Lightbulb);
+rgbLightService
+    .getCharacteristic(Characteristic.On)
+    .on('get', doGet(() => rgbLight.getStatus().then(d => d.on)))
+    .on('set', doSet((state) => {
+        if (state) {
+            return rgbLight.turnOn();
+        }
+        return rgbLight.turnOff();
+    }));
+rgbLightService
+    .getCharacteristic(Characteristic.Brightness)
+    .on('get', doGet(() => rgbLight.getColor().then(({ v }) => v)))
+    .on('set', doSet(v => rgbLight.setColor({ v })));
+rgbLightService
+    .getCharacteristic(Characteristic.Saturation)
+    .on('get', doGet(() => rgbLight.getColor().then(({ s }) => s)))
+    .on('set', doSet(s => rgbLight.setColor({ s })));
+rgbLightService
+    .getCharacteristic(Characteristic.Hue)
+    .on('get', doGet(() => rgbLight.getColor().then(({ h }) => h)))
+    .on('set', doSet(h => rgbLight.setColor({ h })));
 
-        const rgbLightService = new Service.Lightbulb();
-        rgbLightService
-            .setCharacteristic(Characteristic.Name, 'Bedside Light');
-        rgbLightService
-            .getCharacteristic(Characteristic.On)
-            .on('get', this.doGet(() => rgbLight.getStatus().then(d => d.on)))
-            .on('set', this.doSet((state) => {
-                if (state) {
-                    return rgbLight.turnOn();
-                }
-                return rgbLight.turnOff();
-            }));
-        rgbLightService
-            .getCharacteristic(Characteristic.Brightness)
-            .on('get', this.doGet(() => rgbLight.getColor().then(({ v }) => v)))
-            .on('set', this.doSet(v => rgbLight.setColor({ v })));
-        rgbLightService
-            .getCharacteristic(Characteristic.Saturation)
-            .on('get', this.doGet(() => rgbLight.getColor().then(({ s }) => s)))
-            .on('set', this.doSet(s => rgbLight.setColor({ s })));
-        rgbLightService
-            .getCharacteristic(Characteristic.Hue)
-            .on('get', this.doGet(() => rgbLight.getColor().then(({ h }) => h)))
-            .on('set', this.doSet(h => rgbLight.setColor({ h })));
+const sunriseService = smartLightAccessory
+    .addService(Service.StatefulProgrammableSwitch);
+sunriseService.setCharacteristic(Characteristic.Name, 'Wake Up');
+sunriseService
+    .getCharacteristic(Characteristic.ProgrammableSwitchOutputState)
+    .on('set', doSet((v) => {
+        console.info('received switch output state', v);
+        rgbLight.startSunrise();
+    }))
+    .on('get', doGet(() => rgbLight.getStatus().then(data => ((data.state === -2) ? 1 : 0))));
+sunriseService
+    .getCharacteristic(Characteristic.ProgrammableSwitchEvent)
+    .on('get', doGet(() => 0));
 
-        const sunriseService = new Service.StatefulProgrammableSwitch('Wake Up Switch');
-        sunriseService.setCharacteristic(Characteristic.Name, 'Wake Up');
-        sunriseService
-            .getCharacteristic(Characteristic.ProgrammableSwitchOutputState)
-            .on('set', this.doSet(v => {
-                log.info("received switch output state", v);
-                rgbLight.startSunrise();
-            }))
-            .on('get', this.doGet(() => rgbLight.getStatus().then(data => ((data.state === -2) ? 1 : 0))));
-        sunriseService
-            .getCharacteristic(Characteristic.ProgrammableSwitchEvent)
-            .on('get', this.doGet(() => 0));
-
-        this.services = [
-            sunriseService,
-            rgbLightService,
-        ];
-    }
-}
-
+export default smartLightAccessory;

@@ -8,9 +8,8 @@ export default class DeviceManager {
         timeout: 2000,
     };
 
-    constructor(server, log) {
+    constructor(server) {
         this.server = server;
-        this.log = log;
 
         let queryWatchers = [];
         let queryFinished = true;
@@ -31,11 +30,11 @@ export default class DeviceManager {
             })
             .catch((err) => {
                 if (i > 4) {
-                    if (this.log) this.log.warn(`retrying data query for ${this.constructor.name}`);
+                    console.warn(`retrying data query for ${this.constructor.name}`);
                     return newQuery(i + 1);
                 }
                 queryFinished = true;
-                if (this.log) this.log.error(err);
+                console.error(err);
                 queryWatchers.forEach(([resolve, reject]) => reject(err)); // eslint-disable-line no-unused-vars
                 queryWatchers = [];
                 throw err;

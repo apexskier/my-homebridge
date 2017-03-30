@@ -2,15 +2,14 @@ import fetch from 'node-fetch';
 import { Characteristic, Service } from 'hap-nodejs';
 import 'rxjs/add/operator/bufferWhen';
 
-import HomebridgeAccessory from '../homebridgeAccessory';
+import { createAccessory, doGet, doSet } from '../accessory';
 import pkg from './package.json';
-import globalInfo from '../../globalInfo';
 import DeviceManager from '../deviceManager';
 
 
 export class Blinds extends DeviceManager {
-    constructor(server, log, numBlinds) {
-        super(server, log);
+    constructor(server, numBlinds) {
+        super(server);
 
         this.numBlinds = numBlinds;
     }
@@ -63,86 +62,77 @@ function uncleanValueOpen(v) {
 }
 
 
-export default class BlindsAccessory extends HomebridgeAccessory {
-    constructor(log, config) {
-        super(log, config);
+const blindObj = new Blinds('http://10.0.1.5', 1);
+const blindsAccessory = createAccessory('Blinds', 'c3fc6778-d746-450a-b412-84f517cb8d80');
 
-        const blindObj = new Blinds('http://10.0.1.5', log, 1);
+blindsAccessory
+    .getService(Service.AccessoryInformation)
+    .setCharacteristic(Characteristic.Manufacturer, 'apexskier')
+    .setCharacteristic(Characteristic.Model, pkg.name)
+    .setCharacteristic(Characteristic.SoftwareRevision, pkg.version);
 
-        const info = new Service.AccessoryInformation();
-        info.setCharacteristic(Characteristic.Name, this.name);
-        info.setCharacteristic(Characteristic.Manufacturer, globalInfo.Manufacturer);
-        info.setCharacteristic(Characteristic.Model, pkg.name);
-        info.setCharacteristic(Characteristic.SoftwareRevision, pkg.version);
-
-        const lightSensorService = new Service.LightSensor();
+const lightSensorService = blindsAccessory
+    .addService(Service.LightSensor);
+lightSensorService
+    .getCharacteristic(Characteristic.CurrentAmbientLightLevel);
+(function lightSensorLoop() {
+    lightSensorService
+        .setCharacteristic(Characteristic.StatusActive, true);
+    blindObj.getStatus().then((data) => {
         lightSensorService
-            .getCharacteristic(Characteristic.CurrentAmbientLightLevel);
+            .setCharacteristic(Characteristic.CurrentAmbientLightLevel, data.luminance);
+        setTimeout(lightSensorLoop, 10000);
+    }).catch((err) => {
+        lightSensorService
+            .setCharacteristic(Characteristic.StatusActive, false);
+        setTimeout(lightSensorLoop, 10000);
+        console.error(err);
+    });
+}());
 
-        (function lightSensorLoop() {
-            lightSensorService
-                .setCharacteristic(Characteristic.StatusActive, true);
-            blindObj.getStatus().then((data) => {
-                lightSensorService
-                    .setCharacteristic(Characteristic.CurrentAmbientLightLevel, data.luminance);
-                setTimeout(lightSensorLoop, 10000);
-            }).catch((err) => {
-                lightSensorService
-                    .setCharacteristic(Characteristic.StatusActive, false);
-                setTimeout(lightSensorLoop, 10000);
-                log.error(err);
-            });
-        }());
-
-        this.services = [
-            lightSensorService,
-        ];
-
-        for (let i = 0; i < blindObj.numBlinds; i += 1) {
-            const coveringService = new Service.WindowCovering();
-            coveringService
-                .getCharacteristic(Characteristic.CurrentHorizontalTiltAngle)
-                .on('get', this.doGet(() => blindObj.getStatus().then(data => cleanValueTilt(data.blinds[i].current))));
-            coveringService
-                .getCharacteristic(Characteristic.TargetHorizontalTiltAngle)
-                .on('get', this.doGet(() => blindObj.getStatus().then(data => cleanValueTilt(data.blinds[i].target))))
-                .on('set', this.doSet(value => blindObj.seek(uncleanValueTilt(value))));
-            coveringService
-                .getCharacteristic(Characteristic.CurrentPosition)
-                .on('get', this.doGet(() => blindObj.getStatus().then(data => cleanValueOpen(data.blinds[i].current))));
-            coveringService
-                .getCharacteristic(Characteristic.TargetPosition)
-                .on('get', this.doGet(() => blindObj.getStatus().then((data) => {
-                    const target = data.blinds[i].target;
-                    const current = data.blinds[i].current;
-                    const cleanTarget = cleanValueOpen(target);
-                    const cleanCurrent = cleanValueOpen(current);
-                    if (Math.abs(target - current) > 10) {
-                        return cleanTarget;
-                    }
-                    return cleanCurrent;
-                })))
-                .on('set', this.doSet(value => blindObj.seek(uncleanValueOpen(value))));
-            coveringService
-                .getCharacteristic(Characteristic.PositionState)
-                .on('get', this.doGet(() => blindObj.getStatus.then((data) => {
-                    switch (data.blinds[i].moving) {
-                    case 'stopped':
-                        return Characteristic.PositionState.STOPPED;
-                    case 'positive':
-                        return Characteristic.PositionState.INCREASING;
-                    case 'negative':
-                        return Characteristic.PositionState.DECREASING;
-                    default:
-                        throw Error('unexpected PositionState');
-                    }
-                })));
-            coveringService
-                .getCharacteristic(Characteristic.ObstructionDetected)
-                .on('get', this.doGet(() => blindObj.getStatus().then(data => data.blinds[i].obstructed)));
-
-            this.services.push(coveringService);
-        }
-    }
+for (let i = 0; i < blindObj.numBlinds; i += 1) {
+    const coveringService = blindsAccessory
+        .addService(Service.WindowCovering);
+    coveringService
+        .getCharacteristic(Characteristic.CurrentHorizontalTiltAngle)
+        .on('get', doGet(() => blindObj.getStatus().then(data => cleanValueTilt(data.blinds[i].current))));
+    coveringService
+        .getCharacteristic(Characteristic.TargetHorizontalTiltAngle)
+        .on('get', doGet(() => blindObj.getStatus().then(data => cleanValueTilt(data.blinds[i].target))))
+        .on('set', doSet(value => blindObj.seek(uncleanValueTilt(value))));
+    coveringService
+        .getCharacteristic(Characteristic.CurrentPosition)
+        .on('get', doGet(() => blindObj.getStatus().then(data => cleanValueOpen(data.blinds[i].current))));
+    coveringService
+        .getCharacteristic(Characteristic.TargetPosition)
+        .on('get', doGet(() => blindObj.getStatus().then((data) => {
+            const target = data.blinds[i].target;
+            const current = data.blinds[i].current;
+            const cleanTarget = cleanValueOpen(target);
+            const cleanCurrent = cleanValueOpen(current);
+            if (Math.abs(target - current) > 10) {
+                return cleanTarget;
+            }
+            return cleanCurrent;
+        })))
+        .on('set', doSet(value => blindObj.seek(uncleanValueOpen(value))));
+    coveringService
+        .getCharacteristic(Characteristic.PositionState)
+        .on('get', doGet(() => blindObj.getStatus.then((data) => {
+            switch (data.blinds[i].moving) {
+            case 'stopped':
+                return Characteristic.PositionState.STOPPED;
+            case 'positive':
+                return Characteristic.PositionState.INCREASING;
+            case 'negative':
+                return Characteristic.PositionState.DECREASING;
+            default:
+                throw Error('unexpected PositionState');
+            }
+        })));
+    coveringService
+        .getCharacteristic(Characteristic.ObstructionDetected)
+        .on('get', doGet(() => blindObj.getStatus().then(data => data.blinds[i].obstructed)));
 }
 
+export default blindsAccessory;

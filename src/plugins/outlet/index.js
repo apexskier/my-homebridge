@@ -1,18 +1,17 @@
 import fetch from 'node-fetch';
 import { Characteristic, Service } from 'hap-nodejs';
 
-import HomebridgeAccessory from '../homebridgeAccessory';
+import { createAccessory, doGet, doSet } from '../accessory';
 import pkg from './package.json';
-import globalInfo from '../../globalInfo';
 import DeviceManager from '../deviceManager';
 
 
-export class Switch extends DeviceManager {
+class Switch extends DeviceManager {
     // reverse -- I programed the "open" circuit logic backwards in my switch,
     // this allows me to fix it homebridge side so I don't have to break open
     // the box to flash new firmware.
-    constructor(server, log, reverse = false) {
-        super(server, log);
+    constructor(server, reverse = false) {
+        super(server);
 
         this.reverse = reverse;
     }
@@ -29,28 +28,24 @@ export class Switch extends DeviceManager {
     }
 }
 
-export default class OutletAccessory extends HomebridgeAccessory {
-    constructor(log, config) {
-        super(log, config);
+const reverse = true;
 
-        const obj = new Switch('http://10.0.1.6', log, true);
+const obj = new Switch('http://10.0.1.6', reverse);
+const outletAccessory = createAccessory('Outlet', 'a104101d-d7ba-4b24-86a7-73fea9b108b1');
 
-        const info = new Service.AccessoryInformation();
-        info.setCharacteristic(Characteristic.Name, this.name);
-        info.setCharacteristic(Characteristic.Manufacturer, globalInfo.Manufacturer);
-        info.setCharacteristic(Characteristic.Model, pkg.name);
-        info.setCharacteristic(Characteristic.SoftwareRevision, pkg.version);
+outletAccessory
+    .getService(Service.AccessoryInformation)
+    .setCharacteristic(Characteristic.Manufacturer, 'apexskier')
+    .setCharacteristic(Characteristic.Model, pkg.name)
+    .setCharacteristic(Characteristic.SoftwareRevision, pkg.version);
 
-        const outletService = new Service.Outlet();
-        outletService
-            .getCharacteristic(Characteristic.On)
-            .on('get', this.doGet(() => obj.getStatus().then(data => (this.reverse ? !data.open : data.open))))
-            .on('set', this.doSet(value => obj.set(value)));
-        outletService.setCharacteristic(Characteristic.OutletInUse, true);
+const outletService = outletAccessory
+    .addService(Service.Outlet);
+outletService
+    .setCharacteristic(Characteristic.OutletInUse, true);
+outletService
+    .getCharacteristic(Characteristic.On)
+    .on('get', doGet(() => obj.getStatus().then(data => (reverse ? data.open : !data.open))))
+    .on('set', doSet(value => obj.set(value)));
 
-        this.services = [
-            outletService,
-        ];
-    }
-}
-
+export default outletAccessory;

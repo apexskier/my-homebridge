@@ -37,7 +37,7 @@ export default class DeviceManager {
                 console.error(err);
                 queryWatchers.forEach(([resolve, reject]) => reject(err)); // eslint-disable-line no-unused-vars
                 queryWatchers = [];
-                throw err;
+                console.error(err);
             });
         };
 
